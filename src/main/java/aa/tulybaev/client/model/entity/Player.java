@@ -1,6 +1,7 @@
 package aa.tulybaev.client.model.entity;
 
 import aa.tulybaev.client.model.input.InputHandler;
+import aa.tulybaev.client.model.world.Platform;
 import aa.tulybaev.client.render.Animation;
 import aa.tulybaev.client.render.SoundManager;
 import aa.tulybaev.client.render.SpriteLoader;
@@ -20,7 +21,10 @@ public class Player {
     private static final double BULLET_SPEED = 35;
     private int muzzleFlashTimer = 0;
     private static final double MUZZLE_X = 0.85;
-    private static final double MUZZLE_Y = -0.75;
+    private static final double MUZZLE_Y = 0.6;
+    private static final int MAX_HP = 100;
+    private int hp = MAX_HP;
+
 
     private int ammo = MAX_AMMO;
     private int fireCooldown = 0;
@@ -52,7 +56,12 @@ public class Player {
         current = idle;
     }
 
-    public void update(InputHandler input, List<Bullet> bullets, int groundY) {
+    public void update(
+            InputHandler input,
+            List<Bullet> bullets,
+            int groundY,
+            List<Platform> platforms
+    ) {
         vx = 0;
 
         if (input.left) vx = -4;
@@ -60,7 +69,6 @@ public class Player {
 
         if (input.jumpPressed && onGround) {
             vy = -12;
-            onGround = false;
             input.jumpPressed = false;
         }
 
@@ -68,18 +76,37 @@ public class Player {
         x += vx;
         y += vy;
 
-        if (y >= groundY) {
-            y = groundY;
+        onGround = false;
+
+        if (y + getHeight() >= groundY) {
+            y = groundY - getHeight();
             vy = 0;
             onGround = true;
         }
+
+        for (Platform p : platforms) {
+            boolean falling = vy >= 0;
+
+            if (falling &&
+                    x + getWidth() > p.getX() &&
+                    x < p.getX() + p.getW() &&
+                    y + getHeight() >= p.getY() &&
+                    y + getHeight() <= p.getY() + p.getH()
+            ) {
+                y = p.getY() - getHeight();
+                vy = 0;
+                onGround = true;
+            }
+        }
+
+        if (vx > 0) facingRight = true;
+        if (vx < 0) facingRight = false;
 
         if (!onGround) current = jump;
         else if (vx != 0) current = walk;
         else current = idle;
 
-        if (vx > 0) facingRight = true;
-        if (vx < 0) facingRight = false;
+        current.update();
 
         if (fireCooldown > 0) fireCooldown--;
 
@@ -91,9 +118,8 @@ public class Player {
         }
 
         if (muzzleFlashTimer > 0) muzzleFlashTimer--;
-
-        current.update();
     }
+
 
     private void shoot(List<Bullet> bullets) {
         muzzleFlashTimer = 5;
@@ -156,5 +182,17 @@ public class Player {
 
     public boolean isFacingRight() {
         return facingRight;
+    }
+
+    public int getHp() {
+        return hp;
+    }
+
+    public int getMaxHp() {
+        return MAX_HP;
+    }
+
+    public boolean isAlive() {
+        return hp > 0;
     }
 }
