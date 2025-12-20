@@ -118,6 +118,12 @@ public final class WorldState {
         bullets.add(b);
     }
 
+    public void removePlayer(int id) {
+        players.remove(id);
+        // Опционально: удали пули этого игрока
+        bullets.removeIf(b -> b.ownerId == id);
+    }
+
     public List<ServerBullet> getBullets() {
         return bullets;
     }

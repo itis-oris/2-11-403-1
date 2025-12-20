@@ -11,20 +11,11 @@ import aa.tulybaev.client.ui.GamePanel;
 public class Main {
 
     public static void main(String[] args) throws Exception {
-
-        // 1. Модель мира (ТОЛЬКО визуал)
         World world = new World();
-
-        // 2. Буфер снапшотов
         SnapshotBuffer snapshotBuffer = new SnapshotBuffer();
-
-        // 3. Ввод
         InputHandler input = new InputHandler();
+        NetworkClient network = new NetworkClient(snapshotBuffer); // ← новый TCP-клиент
 
-        // 4. Сеть
-        NetworkClient network = new NetworkClient(snapshotBuffer);
-
-        // 5. UI
         GamePanel panel = new GamePanel(world);
         panel.addKeyListener(input);
         panel.setFocusable(true);
@@ -33,15 +24,14 @@ public class Main {
         GameFrame frame = new GameFrame(panel);
         frame.setVisible(true);
 
-        // 6. Игровой цикл
-        GameLoop loop = new GameLoop(
-                world,
-                panel,
-                network,
-                snapshotBuffer,
-                input
-        );
+        GameLoop loop = new GameLoop(world, panel, network, snapshotBuffer, input);
+        Thread gameThread = new Thread(loop, "GameLoop");
+        gameThread.start();
 
-        new Thread(loop, "GameLoop").start();
+        // Завершение при закрытии
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            network.shutdown();
+            gameThread.interrupt();
+        }));
     }
 }

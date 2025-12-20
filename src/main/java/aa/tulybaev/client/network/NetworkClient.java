@@ -3,154 +3,107 @@ package aa.tulybaev.client.network;
 import aa.tulybaev.client.core.SnapshotBuffer;
 import aa.tulybaev.protocol.*;
 
-import java.io.*;
-import java.net.DatagramPacket;
-import java.net.DatagramSocket;
-import java.net.InetAddress;
+import java.io.DataInputStream;
+import java.io.DataOutputStream;
+import java.io.IOException;
+import java.net.Socket;
 
 /**
- * Клиентский сетевой слой.
+ * Клиентский сетевой слой на TCP.
  * Отвечает ТОЛЬКО за отправку/приём сообщений.
  */
 public final class NetworkClient {
 
+    private static final String SERVER_HOST = "localhost";
     private static final int SERVER_PORT = 50000;
-    private static final int BUFFER_SIZE = 8192;
 
-    private final DatagramSocket socket;
-    private final InetAddress serverAddr;
+    private final Socket socket;
+    private final DataOutputStream out;
+    private final DataInputStream in;
     private final SnapshotBuffer snapshotBuffer;
 
     private volatile int playerId = -1;
+    private volatile boolean running = true;
 
     public NetworkClient(SnapshotBuffer snapshotBuffer) throws Exception {
         this.snapshotBuffer = snapshotBuffer;
-        this.socket = new DatagramSocket();
-        this.serverAddr = InetAddress.getByName("localhost");
+        this.socket = new Socket(SERVER_HOST, SERVER_PORT);
+        this.out = new DataOutputStream(socket.getOutputStream());
+        this.in = new DataInputStream(socket.getInputStream());
 
-        sendJoin();
+        send(new JoinRequest("player"));
         startListener();
     }
 
-    // ================= JOIN =================
+    // ================= ВНЕШНИЙ ИНТЕРФЕЙС =================
 
-    private void sendJoin() {
-        send(new JoinRequest("player"));
-    }
-
-    // ================= INPUT =================
-
-    /**
-     * Отправка пользовательского ввода.
-     * Вызывается из GameLoop.
-     */
-    // В NetworkClient.java
-
-    public void sendInput(
-            float x,
-            float y,
-            boolean facingRight,
-            boolean shoot
-    ) {
+    public void sendInput(float dx, float dy, boolean shoot) {
         if (playerId < 0) return;
-
-        send(new InputMessage(
-                playerId,
-                x,
-                y,
-                facingRight,
-                shoot
-        ));
+        send(new InputMessage(playerId, dx, dy, shoot));
     }
 
-    // ================= LISTENER =================
+    public int getPlayerId() {
+        return playerId;
+    }
+
+    public void shutdown() {
+        running = false;
+        try {
+            socket.close();
+        } catch (IOException ignored) {}
+    }
+
+    // ================= ОТПРАВКА =================
+
+    private void send(GameMessage msg) {
+        try {
+            BinaryProtocol.send(out, msg);
+        } catch (Exception e) {
+            if (running) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    // ================= ПРИЁМ =================
 
     private void startListener() {
-        Thread t = new Thread(() -> {
-            byte[] buf = new byte[BUFFER_SIZE];
-
-            while (!socket.isClosed()) {
-                try {
-                    DatagramPacket packet =
-                            new DatagramPacket(buf, buf.length);
-                    socket.receive(packet);
-
-                    DataInputStream in =
-                            new DataInputStream(
-                                    new ByteArrayInputStream(
-                                            packet.getData(),
-                                            0,
-                                            packet.getLength()
-                                    )
-                            );
-
+        Thread listener = new Thread(() -> {
+            try {
+                while (running && !socket.isClosed()) {
                     GameMessage msg = BinaryProtocol.receive(in);
                     handle(msg);
-
-                } catch (Exception e) {
-                    e.printStackTrace();
+                }
+            } catch (IOException e) {
+                if (running) {
+                    System.err.println("Connection lost");
                 }
             }
         }, "NetworkListener");
-
-        t.setDaemon(true);
-        t.start();
+        listener.setDaemon(true);
+        listener.start();
     }
 
-    // ================= HANDLER =================
+    // ================= ОБРАБОТКА =================
 
     private void handle(GameMessage msg) {
-
         switch (msg.type()) {
-
-            case JOIN -> {
+            case JOIN_ACCEPT -> {
                 JoinAccept join = (JoinAccept) msg;
                 this.playerId = join.playerId();
                 System.out.println("Connected as player " + playerId);
             }
-
-
             case SNAPSHOT -> {
-                WorldSnapshotMessage snap =
-                        (WorldSnapshotMessage) msg;
+                WorldSnapshotMessage snap = (WorldSnapshotMessage) msg;
                 snapshotBuffer.push(snap);
             }
-
+            case DISCONNECT -> {
+                System.out.println("Server disconnected");
+                running = false;
+            }
             default -> {
-                // INPUT и DISCONNECT клиент НЕ принимает
+                // Игнорируем неожиданные типы
             }
         }
-    }
-
-    // ================= SEND =================
-
-    private void send(GameMessage msg) {
-        try {
-            ByteArrayOutputStream baos =
-                    new ByteArrayOutputStream();
-            DataOutputStream out =
-                    new DataOutputStream(baos);
-
-            BinaryProtocol.send(out, msg);
-
-            byte[] data = baos.toByteArray();
-            socket.send(
-                    new DatagramPacket(
-                            data,
-                            data.length,
-                            serverAddr,
-                            SERVER_PORT
-                    )
-            );
-
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-    }
-
-    // ================= GETTERS =================
-
-    public int getPlayerId() {
-        return playerId;
     }
 }
