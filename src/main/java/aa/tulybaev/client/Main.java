@@ -11,11 +11,24 @@ import aa.tulybaev.client.ui.GamePanel;
 public class Main {
 
     public static void main(String[] args) throws Exception {
+
+        // 1. Загружаем состояние
+        GameState gameState = GameStateStorage.load();
+        System.out.println("Loaded lastPlayerId: " + gameState.lastPlayerId);
+
+        // 2. Модель мира
         World world = new World();
+
+        // 3. Буфер снапшотов
         SnapshotBuffer snapshotBuffer = new SnapshotBuffer();
+
+        // 4. Ввод
         InputHandler input = new InputHandler();
+
+        // 5. Сеть
         NetworkClient network = new NetworkClient(snapshotBuffer);
 
+        // 6. UI
         GamePanel panel = new GamePanel(world);
         panel.addKeyListener(input);
         panel.setFocusable(true);
@@ -24,13 +37,29 @@ public class Main {
         GameFrame frame = new GameFrame(panel);
         frame.setVisible(true);
 
-        // Передаём frame в GameLoop
-        GameLoop loop = new GameLoop(world, panel, frame, network, snapshotBuffer, input);
+        // 7. Игровой цикл
+        GameLoop loop = new GameLoop(
+                world,
+                panel,
+                frame,
+                network,
+                snapshotBuffer,
+                input
+        );
+
         Thread gameThread = new Thread(loop, "GameLoop");
         gameThread.start();
 
-        // Завершение при закрытии
+        // 8. Сохранение при выходе
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            // Сохраняем playerId, если подключились
+            int playerId = network.getPlayerId();
+            if (playerId >= 0) {
+                gameState.lastPlayerId = playerId;
+                GameStateStorage.save(gameState);
+            }
+
+            // Завершаем сетевой клиент и игру
             network.shutdown();
             gameThread.interrupt();
         }));
