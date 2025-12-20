@@ -39,18 +39,40 @@ public final class Renderer {
 
     // ================= ENTRY POINT =================
 
+    // ================= ENTRY POINT =================
+
     public void render(Graphics2D g) {
+        // === 1. Фон (всегда рисуем) ===
+        if (background != null) {
+            int bgWidth = background.getWidth();
+            // Используем камеру, даже если игрока нет — начальная позиция = 0
+            int camX = camera.getX();
+            int startX = -(camX % bgWidth);
+            for (int x = startX; x < SCREEN_W; x += bgWidth) {
+                g.drawImage(background, x, 0, null);
+            }
+        } else {
+            // Резерв: красный фон, если спрайт не загрузился
+            g.setColor(Color.RED);
+            g.fillRect(0, 0, SCREEN_W, SCREEN_H);
+        }
 
+        // === 2. Обновляем камеру, только если есть цель ===
         RenderablePlayer cameraTarget = world.getCameraTarget();
-        if (cameraTarget == null) return;
+        if (cameraTarget != null) {
+            camera.follow(cameraTarget, SCREEN_W, SCREEN_H);
+        }
+        // Иначе камера остаётся в последнем положении (или 0)
 
-        camera.follow(cameraTarget, SCREEN_W, SCREEN_H);
-
-        drawBackground(g);
+        // === 3. Рисуем статичный мир (платформы, стены и т.д.) ===
         drawWorldObjects(g);
-        drawPlayers(g);
-        drawBullets(g);
-        drawHud(g);
+
+        // === 4. Рисуем динамические объекты (только если есть игроки) ===
+        if (cameraTarget != null) {
+            drawPlayers(g);
+            drawBullets(g);
+            drawHud(g);
+        }
     }
 
     // ================= DRAW SECTIONS =================

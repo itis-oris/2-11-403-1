@@ -29,6 +29,7 @@ public class GameFrame extends JFrame {
         // Кнопка выхода
         JButton exitButton = new JButton("Exit");
         exitButton.addActionListener(e -> System.exit(0));
+        exitButton.setFocusable(false);
         topPanel.add(Box.createHorizontalGlue());
         topPanel.add(exitButton);
 

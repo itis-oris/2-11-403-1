@@ -190,6 +190,14 @@ public class Server {
     // ================= MAIN =================
 
     public static void main(String[] args) throws Exception {
-        new Server();
+        Server server = new Server();
+
+        // Ожидаем ввода от пользователя для завершения
+        System.out.println("Server is running. Press ENTER to stop.");
+        System.in.read(); // Блокирует главный поток до нажатия Enter
+
+        // Завершаем сервер
+        server.serverSocket.close();
+        System.out.println("Server stopped.");
     }
 }

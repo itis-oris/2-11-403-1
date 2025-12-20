@@ -50,6 +50,16 @@ public class Main {
         Thread gameThread = new Thread(loop, "GameLoop");
         gameThread.start();
 
+        // ДОБАВЬ ЭТО: ждём, пока окно не закроется
+        while (frame.isDisplayable()) {
+            Thread.sleep(100);
+        }
+
+        // Завершение
+        network.shutdown();
+        gameThread.interrupt();
+
+
         // 8. Сохранение при выходе
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             // Сохраняем playerId, если подключились
