@@ -21,6 +21,7 @@ public final class NetworkClient {
     private final DataOutputStream out;
     private final DataInputStream in;
     private final SnapshotBuffer snapshotBuffer;
+    private ConnectionCallback onConnected;
 
     private volatile int playerId = -1;
     private volatile boolean running = true;
@@ -34,6 +35,7 @@ public final class NetworkClient {
         send(new JoinRequest("player"));
         startListener();
     }
+
 
     // ================= ВНЕШНИЙ ИНТЕРФЕЙС =================
 
@@ -78,6 +80,9 @@ public final class NetworkClient {
                 if (running) {
                     System.err.println("Connection lost");
                 }
+            } catch (Exception e) {
+                System.err.println("Failed to read message:");
+                e.printStackTrace(); // ← ВАЖНО!
             }
         }, "NetworkListener");
         listener.setDaemon(true);
@@ -87,14 +92,20 @@ public final class NetworkClient {
     // ================= ОБРАБОТКА =================
 
     private void handle(GameMessage msg) {
+        System.out.println("Received message: " + msg.type()); // ← ДОБАВЬ ЭТО
+
         switch (msg.type()) {
             case JOIN_ACCEPT -> {
                 JoinAccept join = (JoinAccept) msg;
                 this.playerId = join.playerId();
                 System.out.println("Connected as player " + playerId);
+                if (onConnected != null) {
+                    onConnected.onConnected(playerId);
+                }
             }
             case SNAPSHOT -> {
                 WorldSnapshotMessage snap = (WorldSnapshotMessage) msg;
+                System.out.println("Pushing snapshot with " + snap.players().size() + " players");
                 snapshotBuffer.push(snap);
             }
             case DISCONNECT -> {
@@ -102,8 +113,13 @@ public final class NetworkClient {
                 running = false;
             }
             default -> {
-                // Игнорируем неожиданные типы
+                System.out.println("Unhandled message type: " + msg.type());
             }
         }
     }
+
+    public void setConnectionCallback(ConnectionCallback callback) {
+        this.onConnected = callback;
+    }
+
 }

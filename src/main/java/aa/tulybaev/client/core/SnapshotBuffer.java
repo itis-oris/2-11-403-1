@@ -15,7 +15,7 @@ public final class SnapshotBuffer {
     private static final int MAX_SNAPSHOTS = 10;
 
     // искусственная задержка (в тиках сервера)
-    private static final int INTERPOLATION_DELAY = 2;
+    private static final int INTERPOLATION_DELAY = 0;
 
     private final Deque<WorldSnapshotMessage> buffer = new ArrayDeque<>();
 
@@ -34,7 +34,7 @@ public final class SnapshotBuffer {
      * Вызывается из GameLoop / render-потока
      */
     public synchronized InterpolatedSnapshot getInterpolated(int renderTick) {
-        if (buffer.size() < 2) {
+        if (buffer.isEmpty()) {
             return null;
         }
 
@@ -52,13 +52,19 @@ public final class SnapshotBuffer {
             }
         }
 
-        if (older == null || newer == null) {
-            return null;
+        if (older != null && newer != null) {
+            float alpha = (float) (targetTick - older.tick())
+                    / (float) (newer.tick() - older.tick());
+            return new InterpolatedSnapshot(older, newer, alpha);
+        } else if (older != null) {
+            // Fallback: использовать последний доступный снапшот
+            return new InterpolatedSnapshot(older, older, 0.0f);
+        } else if (!buffer.isEmpty()) {
+            // Fallback: использовать самый первый снапшот
+            WorldSnapshotMessage first = buffer.peekFirst();
+            return new InterpolatedSnapshot(first, first, 0.0f);
         }
 
-        float alpha = (float) (targetTick - older.tick())
-                / (float) (newer.tick() - older.tick());
-
-        return new InterpolatedSnapshot(older, newer, alpha);
+        return null;
     }
 }

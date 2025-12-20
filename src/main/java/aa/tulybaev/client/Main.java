@@ -27,6 +27,10 @@ public class Main {
 
         // 5. Сеть
         NetworkClient network = new NetworkClient(snapshotBuffer);
+        network.setConnectionCallback(id -> {
+            world.setLocalPlayerId(id);
+            System.out.println("Local player ID set to: " + id);
+        });
 
         // 6. UI
         GamePanel panel = new GamePanel(world);

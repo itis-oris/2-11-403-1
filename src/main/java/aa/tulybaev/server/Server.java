@@ -8,6 +8,7 @@ import java.io.IOException;
 import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -19,9 +20,10 @@ public class Server {
     private final ServerSocket serverSocket;
     private final WorldState world = new WorldState();
     private final AtomicInteger nextId = new AtomicInteger(1);
+    private int serverTick = 0;
 
     // Регистр клиентов: playerId -> ClientHandler
-    private final Map<Integer, ClientHandler> clients = new ConcurrentHashMap<>();
+    private final Set<ClientHandler> allClients = ConcurrentHashMap.newKeySet();
 
     public Server() throws Exception {
         this.serverSocket = new ServerSocket(PORT);
@@ -64,10 +66,8 @@ public class Server {
                 long now = System.nanoTime();
                 if (now - last >= nsPerTick) {
                     world.update();
-
-                    // Рассылаем снапшот всем клиентам
-                    broadcastSnapshot();
-
+                    serverTick++; // ← увеличиваем каждый тик
+                    broadcastSnapshot(serverTick); // ← передаём явно
                     last = now;
                 }
                 try {
@@ -81,8 +81,7 @@ public class Server {
 
     // ================= РАССЫЛКА СНАПШОТОВ =================
 
-    private void broadcastSnapshot() {
-        // Собираем снапшот
+    private void broadcastSnapshot(int tick) {
         var players = world.getPlayers();
         var snapshots = players.stream()
                 .map(p -> new PlayerSnapshot(
@@ -94,13 +93,8 @@ public class Server {
                 ))
                 .toList();
 
-        // Генерируем уникальный тик (можно использовать системное время или счётчик)
-        int tick = (int) (System.currentTimeMillis() / (1000 / TICK_RATE));
-
         WorldSnapshotMessage msg = new WorldSnapshotMessage(tick, snapshots);
-
-        // Рассылаем
-        for (ClientHandler client : clients.values()) {
+        for (ClientHandler client : allClients) {
             client.send(msg);
         }
     }
@@ -118,6 +112,7 @@ public class Server {
             this.socket = socket;
             this.in = new DataInputStream(socket.getInputStream());
             this.out = new DataOutputStream(socket.getOutputStream());
+            Server.this.allClients.add(this); // ← ДОБАВЛЯЕМ СРАЗУ
         }
 
         @Override
@@ -142,7 +137,6 @@ public class Server {
                     int id = nextId.getAndIncrement();
                     world.createPlayer(id);
                     this.playerId = id;
-                    clients.put(id, this);
 
                     send(new JoinAccept(id));
                 }
@@ -178,9 +172,9 @@ public class Server {
 
         private void disconnect() {
             if (playerId != -1) {
-                clients.remove(playerId);
-                world.removePlayer(playerId); // ← нужно добавить в WorldState!
+                world.removePlayer(playerId);
             }
+            Server.this.allClients.remove(this); // ← УДАЛЯЕМ
             try {
                 socket.close();
             } catch (IOException ignored) {}

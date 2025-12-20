@@ -60,8 +60,10 @@ public final class GameLoop implements Runnable {
                 // 3. Применяем снапшоты для рендера
                 InterpolatedSnapshot snap = snapshotBuffer.getInterpolated(renderTick);
                 if (snap != null) {
+                    System.out.println("Applying snapshot with " + snap.players().size() + " players");
                     world.applyInterpolated(snap);
-                    world.setLocalPlayerId(network.getPlayerId());
+                } else {
+                    System.out.println("No snapshot available yet");
                 }
 
                 // 4. Обновляем HUD (берём данные из world)
