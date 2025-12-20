@@ -12,7 +12,7 @@ public final class JoinAccept implements GameMessage {
 
     @Override
     public MessageType type() {
-        return MessageType.JOIN;
+        return MessageType.JOIN_ACCEPT; // ← было JOIN
     }
 
     @Override

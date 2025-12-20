@@ -1,10 +1,11 @@
 package aa.tulybaev.protocol;
 
 public enum MessageType {
-    JOIN(1),
-    INPUT(2),
-    SNAPSHOT(3),
-    DISCONNECT(4);
+    JOIN_REQUEST(1),
+    JOIN_ACCEPT(2),
+    INPUT(3),
+    SNAPSHOT(4),
+    DISCONNECT(5);
 
     private final byte id;
 
@@ -23,4 +24,3 @@ public enum MessageType {
         throw new IllegalArgumentException("Unknown type: " + id);
     }
 }
-

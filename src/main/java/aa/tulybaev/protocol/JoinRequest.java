@@ -12,7 +12,7 @@ public final class JoinRequest implements GameMessage {
 
     @Override
     public MessageType type() {
-        return MessageType.JOIN;
+        return MessageType.JOIN_REQUEST;
     }
 
     @Override

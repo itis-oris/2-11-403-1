@@ -10,10 +10,11 @@ public final class MessageReader {
         MessageType type = MessageType.from(in.readByte());
 
         return switch (type) {
-            case JOIN -> JoinAccept.read(in);
+            case JOIN_REQUEST -> JoinRequest.read(in);
+            case JOIN_ACCEPT -> JoinAccept.read(in);
             case INPUT -> InputMessage.read(in);
             case SNAPSHOT -> WorldSnapshotMessage.read(in);
-            case DISCONNECT -> throw new IOException("Not implemented");
+            case DISCONNECT -> throw new IOException("DISCONNECT not implemented");
         };
     }
 }
