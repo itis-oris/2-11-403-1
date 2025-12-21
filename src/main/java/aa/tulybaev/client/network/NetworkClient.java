@@ -105,7 +105,11 @@ public final class NetworkClient {
             }
             case SNAPSHOT -> {
                 WorldSnapshotMessage snap = (WorldSnapshotMessage) msg;
-                System.out.println("Pushing snapshot with " + snap.players().size() + " players");
+                System.out.println("CLIENT: Received snapshot with " + snap.players().size() + " players");
+                for (PlayerSnapshot p : snap.players()) {
+                    System.out.println("  Player " + p.id() + " at (" + p.x() + ", " + p.y() +
+                            ") facing=" + p.facingRight() + " hp=" + p.hp());
+                }
                 snapshotBuffer.push(snap);
             }
             case DISCONNECT -> {

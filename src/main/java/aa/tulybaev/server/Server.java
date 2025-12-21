@@ -109,6 +109,10 @@ public class Server {
         for (ClientHandler client : allClients) {
             client.send(msg);
         }
+
+        for (var p : players) {
+            System.out.println("Server player " + p.id + " at (" + p.x + ", " + p.y + ")");
+        }
     }
 
     // ================= ОБРАБОТЧИК КЛИЕНТА =================

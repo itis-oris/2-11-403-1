@@ -1,7 +1,5 @@
 package aa.tulybaev.client.ui;
 
-import aa.tulybaev.client.GameStatus;
-
 import javax.swing.*;
 import java.awt.*;
 

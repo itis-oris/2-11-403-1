@@ -17,26 +17,21 @@ public class Main {
     private static Thread gameThread;
     private static NetworkClient network;
     private static GameState gameState;
+    private static GamePanel currentPanel = null;
 
     public static void main(String[] args) throws Exception {
         gameState = GameStateStorage.load();
         System.out.println("Loaded lastPlayerId: " + gameState.lastPlayerId);
 
-        World world = new World();
-        SnapshotBuffer snapshotBuffer = new SnapshotBuffer();
-        InputHandler input = new InputHandler();
-        GamePanel panel = new GamePanel(world);
-        panel.addKeyListener(input);
-        panel.setFocusable(true);
-
+        // УДАЛИ всё, что связано с World, GamePanel здесь!
         frame = new GameFrame();
-        // Передаём ссылки в GameFrame
         frame.startGame = Main::startGameImpl;
         frame.restartGame = Main::restartGameImpl;
 
         frame.setVisible(true);
-        frame.showMenu(); // Начинаем с меню
+        frame.showMenu();
     }
+
 
     // Реализация GameFrame.startGame
     public static void startGameImpl() {
@@ -45,25 +40,29 @@ public class Main {
             SnapshotBuffer snapshotBuffer = new SnapshotBuffer();
             InputHandler input = new InputHandler();
             network = new NetworkClient(snapshotBuffer);
-            network.setConnectionCallback(id -> world.setLocalPlayerId(id));
+            network.setConnectionCallback(id -> {
+                System.out.println("CLIENT: Local player ID set to: " + id);
+                world.setLocalPlayerId(id);
+            });
 
-            GamePanel panel = new GamePanel(world);
-            panel.addKeyListener(input);
-            panel.setFocusable(true);
-            panel.requestFocusInWindow();
+            // Используем ОДИН GamePanel
+            if (currentPanel == null) {
+                currentPanel = new GamePanel(world);
+                currentPanel.addKeyListener(input);
+                currentPanel.setFocusable(true);
+                frame.setGamePanel(currentPanel);
+            } else {
+                currentPanel.setWorld(world);
+            }
 
-            gameLoop = new GameLoop(world, panel, frame, network, snapshotBuffer, input);
+            gameLoop = new GameLoop(world, currentPanel, frame, network, snapshotBuffer, input);
             gameThread = new Thread(gameLoop, "GameLoop");
             gameThread.start();
 
-            frame.setGamePanel(panel);
             frame.showGame();
-            SwingUtilities.invokeLater(() -> {
-                panel.requestFocusInWindow();
-            });
+            SwingUtilities.invokeLater(() -> currentPanel.requestFocusInWindow());
         } catch (Exception e) {
             e.printStackTrace();
-            System.exit(1);
         }
     }
 

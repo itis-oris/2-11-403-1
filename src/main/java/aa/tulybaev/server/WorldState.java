@@ -38,6 +38,7 @@ public final class WorldState {
         p.y = 200;
         p.vx = 0;
         p.vy = 0;
+        System.out.println("Created player " + id + " at (" + p.x + ", " + p.y + ")");
         p.onGround = false;
         players.put(id, p);
         return p;

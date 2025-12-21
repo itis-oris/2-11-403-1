@@ -12,6 +12,7 @@ public final class RemotePlayer implements RenderablePlayer {
     private int hp;
     private int hitFlashTimer = 0;
     private static final double SCALE = 0.25;
+    private final int id;
 
     // ===== ANIMATIONS =====
     private final Animation idle;
@@ -31,6 +32,7 @@ public final class RemotePlayer implements RenderablePlayer {
     }
 
     public RemotePlayer(int id) {
+        this.id = id;
         BufferedImage idleImg = SpriteLoader.load("/sprites/Player2/Player-2.png");
         BufferedImage walk1 = SpriteLoader.load("/sprites/Player2/Player-2-walk-1.png");
         BufferedImage walk2 = SpriteLoader.load("/sprites/Player2/Player-2-walk-2.png");
@@ -41,6 +43,10 @@ public final class RemotePlayer implements RenderablePlayer {
         jump = new Animation(new BufferedImage[]{jumpImg}, 30);
 
         current = idle;
+    }
+
+    public int id() {
+        return id;
     }
 
     // ================= APPLY SNAPSHOT =================
@@ -62,13 +68,17 @@ public final class RemotePlayer implements RenderablePlayer {
     // ================= RENDER HELPERS =================
 
     public void setState(float x, float y, boolean facingRight, int hp, boolean isMoving, boolean isOnGround) {
+        System.out.println("RemotePlayer.setState: x=" + x + ", y=" + y + ", hp=" + hp);
         if (hp < this.hp && hp >= 0) {
             this.hitFlashTimer = 10;
-            // Воспроизводим звук урона
+
             new Thread(() ->
                     aa.tulybaev.client.render.components.SoundManager.play("/sounds/hit.wav")
             ).start();
         }
+        this.x = (int) x; // ← ДОБАВЬ ЭТО
+        this.y = (int) y; // ← ДОБАВЬ ЭТО
+        this.facingRight = facingRight; // ← ДОБАВЬ ЭТО
         this.hp = hp;
         updateAnimation(isMoving, isOnGround);
     }

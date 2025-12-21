@@ -21,7 +21,7 @@ public final class Renderer {
     private static final int SCREEN_W = 960;
     private static final int SCREEN_H = 540;
 
-    private final World world;
+    private World world;
     private final Camera camera;
     private final HudRenderer hud;
 
@@ -42,32 +42,27 @@ public final class Renderer {
     // ================= ENTRY POINT =================
 
     public void render(Graphics2D g) {
-        // === 1. Фон (всегда рисуем) ===
+        // === 0. Обновляем камеру СРАЗУ ===
+        RenderablePlayer cameraTarget = world.getCameraTarget();
+        if (cameraTarget != null) {
+            camera.follow(cameraTarget, SCREEN_W, SCREEN_H);
+        }
+
+        // === 1. Фон (с актуальной камерой) ===
         if (background != null) {
             int bgWidth = background.getWidth();
-            // Используем камеру, даже если игрока нет — начальная позиция = 0
-            int camX = camera.getX();
+            int camX = camera.getX(); // ← Теперь camX = 200
             int startX = -(camX % bgWidth);
             for (int x = startX; x < SCREEN_W; x += bgWidth) {
                 g.drawImage(background, x, 0, null);
             }
         } else {
-            // Резерв: красный фон, если спрайт не загрузился
             g.setColor(Color.RED);
             g.fillRect(0, 0, SCREEN_W, SCREEN_H);
         }
 
-        // === 2. Обновляем камеру, только если есть цель ===
-        RenderablePlayer cameraTarget = world.getCameraTarget();
-        if (cameraTarget != null) {
-            camera.follow(cameraTarget, SCREEN_W, SCREEN_H);
-        }
-        // Иначе камера остаётся в последнем положении (или 0)
-
-        // === 3. Рисуем статичный мир (платформы, стены и т.д.) ===
+        // === 2. Рисуем остальное с той же камерой ===
         drawWorldObjects(g);
-
-        // === 4. Рисуем динамические объекты (только если есть игроки) ===
         if (cameraTarget != null) {
             drawPlayers(g);
             drawBullets(g);
@@ -120,6 +115,11 @@ public final class Renderer {
     }
 
 
+    public void setWorld(World newWorld) {
+        this.world = newWorld;
+    }
+
+
 
     // ================= LOW-LEVEL =================
 
@@ -131,11 +131,21 @@ public final class Renderer {
         BufferedImage img = p.getFrame();
         if (img == null) return;
 
+        int drawX = p.getDrawX();
+        int drawY = p.getDrawY();
+        int camX = camera.getX();
+        int camY = camera.getY();
+
         int w = p.getWidth();
         int h = p.getHeight();
 
         int x = p.getDrawX() - camera.getX();
         int y = p.getDrawY() - camera.getY();
+
+        System.out.println("Player: drawX=" + drawX + ", drawY=" + drawY);
+        System.out.println("Camera: camX=" + camX + ", camY=" + camY);
+        System.out.println("Render at: x=" + x + ", y=" + y);
+        System.out.println("---");
 
         if (p.isHit()) {
             g.setColor(new Color(255, 0, 0, 120));

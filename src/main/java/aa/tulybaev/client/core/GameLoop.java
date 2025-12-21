@@ -75,6 +75,10 @@ public final class GameLoop implements Runnable {
                     world.applyInterpolated(snap);
                     world.getBullets().removeIf(bullet -> !bullet.isAlive());
                     for (Bullet b : world.getBullets()) {
+                        b.update(); // для плавности между снапшотами
+                    }
+                    world.getBullets().removeIf(bullet -> !bullet.isAlive());
+                    for (Bullet b : world.getBullets()) {
                         b.update(); // летят даже если снапшот старый
                     }
                 } else {

@@ -35,15 +35,18 @@ public final class SnapshotBuffer {
      */
     public synchronized InterpolatedSnapshot getInterpolated(int renderTick) {
         if (buffer.isEmpty()) {
+            System.out.println("CLIENT: Snapshot buffer is empty");
             return null;
         }
 
         int targetTick = renderTick - INTERPOLATION_DELAY;
+        System.out.println("CLIENT: renderTick=" + renderTick + ", targetTick=" + targetTick);
 
         WorldSnapshotMessage older = null;
         WorldSnapshotMessage newer = null;
 
         for (WorldSnapshotMessage s : buffer) {
+            System.out.println("  Buffer entry: tick=" + s.tick());
             if (s.tick() <= targetTick) {
                 older = s;
             } else {
@@ -53,18 +56,19 @@ public final class SnapshotBuffer {
         }
 
         if (older != null && newer != null) {
-            float alpha = (float) (targetTick - older.tick())
-                    / (float) (newer.tick() - older.tick());
+            System.out.println("CLIENT: Interpolating between tick " + older.tick() + " and " + newer.tick());
+            float alpha = (float) (targetTick - older.tick()) / (float) (newer.tick() - older.tick());
             return new InterpolatedSnapshot(older, newer, alpha);
         } else if (older != null) {
-            // Fallback: использовать последний доступный снапшот
+            System.out.println("CLIENT: Using older snapshot (tick=" + older.tick() + ")");
             return new InterpolatedSnapshot(older, older, 0.0f);
         } else if (!buffer.isEmpty()) {
-            // Fallback: использовать самый первый снапшот
-            WorldSnapshotMessage first = buffer.peekFirst();
+            WorldSnapshotMessage first = buffer.iterator().next();
+            System.out.println("CLIENT: Using first snapshot (tick=" + first.tick() + ")");
             return new InterpolatedSnapshot(first, first, 0.0f);
         }
 
+        System.out.println("CLIENT: No valid snapshots found");
         return null;
     }
 }

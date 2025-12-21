@@ -52,6 +52,8 @@ public final class World {
      * ЕДИНСТВЕННАЯ точка изменения состояния.
      */
     public void applyInterpolated(InterpolatedSnapshot snapshot) {
+
+        remotePlayers.clear();
         // ===== PLAYERS =====
         for (PlayerView pv : snapshot.players().values()) {
             if (pv.id() == localPlayerId) {

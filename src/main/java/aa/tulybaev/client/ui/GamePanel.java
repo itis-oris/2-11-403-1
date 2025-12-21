@@ -9,6 +9,7 @@ public class GamePanel extends JPanel {
     private final aa.tulybaev.client.render.Renderer renderer;
     private int hudHp, hudMaxHp, hudAmmo;
     private boolean hudIsShooting;
+    private World world;
 
     // Фиксированный размер игрового окна
     private static final int GAME_WIDTH = 960;
@@ -18,6 +19,7 @@ public class GamePanel extends JPanel {
         this.renderer = new aa.tulybaev.client.render.Renderer(world);
         setPreferredSize(new Dimension(GAME_WIDTH, GAME_HEIGHT));
         setBackground(Color.BLACK); // чтобы видеть панель, если рендер не работает
+        this.world = world;
     }
 
     public void setHudData(int hp, int maxHp, int ammo, boolean isShooting) {
@@ -37,5 +39,11 @@ public class GamePanel extends JPanel {
         renderer.render(g2d);
 
         g2d.dispose();
+    }
+
+    public void setWorld(World newWorld) {
+        this.world = newWorld;
+        this.renderer.setWorld(newWorld); // ← КЛЮЧЕВО!
+        repaint();
     }
 }
