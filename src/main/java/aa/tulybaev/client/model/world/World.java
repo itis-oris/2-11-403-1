@@ -22,9 +22,6 @@ public final class World {
 
     private int localPlayerId = -1;
 
-    /** Визуальное представление локального игрока (рендерится как RemotePlayer) */
-    private RemotePlayer localPlayer;
-
     /** Визуальные представления удалённых игроков */
     private final Map<Integer, RemotePlayer> remotePlayers = new ConcurrentHashMap<>();
 
@@ -53,19 +50,12 @@ public final class World {
      */
     public void applyInterpolated(InterpolatedSnapshot snapshot) {
 
-        remotePlayers.clear();
         // ===== PLAYERS =====
         for (PlayerView pv : snapshot.players().values()) {
-            if (pv.id() == localPlayerId) {
-                if (localPlayer == null) {
-                    localPlayer = new RemotePlayer(pv.id());
-                }
-                localPlayer.setState(pv.x(), pv.y(), pv.facingRight(), pv.hp(), pv.isMoving(), pv.isOnGround());
-            } else {
-                remotePlayers
-                        .computeIfAbsent(pv.id(), RemotePlayer::new)
-                        .setState(pv.x(), pv.y(), pv.facingRight(), pv.hp(), pv.isMoving(), pv.isOnGround());
-            }
+            boolean isLocal = (pv.id() == localPlayerId);
+            remotePlayers
+                    .computeIfAbsent(pv.id(), id -> new RemotePlayer(id, isLocal))
+                    .setState(pv.x(), pv.y(), pv.facingRight(), pv.hp(), pv.ammo(), pv.isMoving(), pv.isOnGround());
         }
 
         // ===== BULLETS =====
@@ -99,21 +89,19 @@ public final class World {
         objects.add(new Crate(1300, GROUND_Y - 40));
         objects.add(new Crate(1600, GROUND_Y - 40));
         objects.add(new Crate(1650, GROUND_Y - 40));
+
+        objects.add(new AmmoStation(800, GROUND_Y - 60));
+        objects.add(new AmmoStation(1400, 240)); // на платформе
     }
 
     // ================= RENDER ACCESS =================
 
     public List<RenderablePlayer> getRenderablePlayers() {
-        List<RenderablePlayer> list = new ArrayList<>();
-        if (localPlayer != null) {
-            list.add(localPlayer);
-        }
-        list.addAll(remotePlayers.values());
-        return list;
+        return new ArrayList<>(remotePlayers.values());
     }
 
     public RemotePlayer getLocalPlayer() {
-        return localPlayer;
+        return remotePlayers.get(localPlayerId);
     }
 
     public Collection<RemotePlayer> getRemotePlayers() {
@@ -129,9 +117,8 @@ public final class World {
     }
 
     public RemotePlayer getCameraTarget() {
-        return localPlayer;
+        return remotePlayers.get(localPlayerId);
     }
-
     // ================= META =================
 
     public int getGroundY() {

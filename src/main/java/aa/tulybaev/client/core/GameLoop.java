@@ -92,7 +92,12 @@ public final class GameLoop implements Runnable {
                         // Игрок умер
                         aa.tulybaev.client.Main.triggerGameOver();
                     }
-                    panel.setHudData(local.getHp(), local.getMaxHp(), 100, false);
+                    panel.setHudData(
+                            local.getHp(),
+                            local.getMaxHp(),
+                            local.getAmmo(), // ← теперь есть!
+                            shoot
+                    );
                 }
 
                 // 5. Перерисовка

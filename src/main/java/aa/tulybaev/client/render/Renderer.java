@@ -142,11 +142,6 @@ public final class Renderer {
         int x = p.getDrawX() - camera.getX();
         int y = p.getDrawY() - camera.getY();
 
-        System.out.println("Player: drawX=" + drawX + ", drawY=" + drawY);
-        System.out.println("Camera: camX=" + camX + ", camY=" + camY);
-        System.out.println("Render at: x=" + x + ", y=" + y);
-        System.out.println("---");
-
         if (p.isHit()) {
             g.setColor(new Color(255, 0, 0, 120));
             g.fillRect(x, y, w, h);

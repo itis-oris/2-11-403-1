@@ -13,6 +13,8 @@ public final class RemotePlayer implements RenderablePlayer {
     private int hitFlashTimer = 0;
     private static final double SCALE = 0.25;
     private final int id;
+    private int ammo = 100; // ← новое поле
+    private static final int MAX_AMMO = 100;
 
     // ===== ANIMATIONS =====
     private final Animation idle;
@@ -31,14 +33,16 @@ public final class RemotePlayer implements RenderablePlayer {
         if (hitFlashTimer > 0) hitFlashTimer--;
     }
 
-    public RemotePlayer(int id) {
+    public RemotePlayer(int id, boolean isLocal) {
         this.id = id;
-        BufferedImage idleImg = SpriteLoader.load("/sprites/Player2/Player-2.png");
-        BufferedImage walk1 = SpriteLoader.load("/sprites/Player2/Player-2-walk-1.png");
-        BufferedImage walk2 = SpriteLoader.load("/sprites/Player2/Player-2-walk-2.png");
-        BufferedImage jumpImg = SpriteLoader.load("/sprites/Player2/Player-2-jump.png");
+        String folder = isLocal ? "Player1" : "Player2";
+        String prefix = isLocal ? "Player-1" : "Player-2";
+        BufferedImage base = SpriteLoader.load("/sprites/" + (isLocal ? "Player1" : "Player2") + "/" + prefix + ".png");
+        BufferedImage walk1 = SpriteLoader.load("/sprites/" + (isLocal ? "Player1" : "Player2") + "/" + prefix + "-walk-1.png");
+        BufferedImage walk2 = SpriteLoader.load("/sprites/" + (isLocal ? "Player1" : "Player2") + "/" + prefix + "-walk-2.png");
+        BufferedImage jumpImg = SpriteLoader.load("/sprites/" + (isLocal ? "Player1" : "Player2") + "/" + prefix + "-jump.png");
 
-        idle = new Animation(new BufferedImage[]{idleImg}, 30);
+        idle = new Animation(new BufferedImage[]{base}, 30);
         walk = new Animation(new BufferedImage[]{walk1, walk2}, 10);
         jump = new Animation(new BufferedImage[]{jumpImg}, 30);
 
@@ -49,37 +53,20 @@ public final class RemotePlayer implements RenderablePlayer {
         return id;
     }
 
-    // ================= APPLY SNAPSHOT =================
-
-    public void setState(
-            int x,
-            int y,
-            boolean facingRight,
-            int hp
-    ) {
-        this.x = x;
-        this.y = y;
-        this.facingRight = facingRight;
-        this.hp = hp;
-
-        current = idle; // default
-    }
-
     // ================= RENDER HELPERS =================
 
-    public void setState(float x, float y, boolean facingRight, int hp, boolean isMoving, boolean isOnGround) {
-        System.out.println("RemotePlayer.setState: x=" + x + ", y=" + y + ", hp=" + hp);
+    public void setState(float x, float y, boolean facingRight, int hp, int ammo, boolean isMoving, boolean isOnGround) {
         if (hp < this.hp && hp >= 0) {
             this.hitFlashTimer = 10;
-
             new Thread(() ->
                     aa.tulybaev.client.render.components.SoundManager.play("/sounds/hit.wav")
             ).start();
         }
-        this.x = (int) x; // ← ДОБАВЬ ЭТО
-        this.y = (int) y; // ← ДОБАВЬ ЭТО
-        this.facingRight = facingRight; // ← ДОБАВЬ ЭТО
+        this.x = (int) x;
+        this.y = (int) y;
+        this.facingRight = facingRight;
         this.hp = hp;
+        this.ammo = ammo; // ← сохраняем патроны
         updateAnimation(isMoving, isOnGround);
     }
 
@@ -94,6 +81,14 @@ public final class RemotePlayer implements RenderablePlayer {
     }
 
     // ================= GETTERS =================
+
+    public int getAmmo() {
+        return ammo;
+    }
+
+    public int getMaxAmmo() {
+        return MAX_AMMO;
+    }
 
     public int getMaxHp() {
         return 100; // или константа

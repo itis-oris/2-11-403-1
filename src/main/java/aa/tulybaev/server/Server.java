@@ -89,6 +89,7 @@ public class Server {
                         (float) p.y,
                         p.facingRight,
                         p.hp,
+                        p.ammo,
                         Math.abs(p.vx) > 0.1f,
                         p.onGround
                 ))

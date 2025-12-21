@@ -1,5 +1,7 @@
 package aa.tulybaev.server;
 
+import aa.tulybaev.client.model.world.objects.*;
+
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -9,38 +11,85 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public final class WorldState {
 
+    private static final int PLAYER_WIDTH = 65;
+    private static final int PLAYER_HEIGHT = 65;
+    private static final int GROUND_Y = 400;
+    private static final int WORLD_WIDTH = 3000;
+
     // ================= PLAYERS =================
 
     public static final class PlayerState {
         public int id;
         public double x, y;
-        public double vx, vy; // ← новые поля для скорости
-        public boolean facingRight;
+        public double vx, vy;
+        public boolean facingRight = true;
         public int hp = 100;
         public int shootCooldown = 0;
-        public boolean onGround = false; // ← новое поле
+        public boolean onGround = false;
+        public int ammo = 100; // ← новое поле
+        private static final int MAX_AMMO = 100;
+
+        public void refillAmmo() {
+            this.ammo = MAX_AMMO;
+        }
     }
 
-    private final Map<Integer, PlayerState> players =
-            new ConcurrentHashMap<>();
+    private final Map<Integer, PlayerState> players = new ConcurrentHashMap<>();
+    private final List<ServerBullet> bullets = new ArrayList<>();
+    private final List<WorldObject> worldObjects = new ArrayList<>(); // ← ДОБАВЛЕНО
 
-    // ================= BULLETS =================
+    // ================= CONSTRUCTOR =================
 
-    private final List<ServerBullet> bullets =
-            new ArrayList<>();
+    public WorldState() {
+        buildLevel(); // ← ИНИЦИАЛИЗАЦИЯ УРОВНЯ
+    }
+
+    // ================= LEVEL =================
+
+    private void buildLevel() {
+        worldObjects.add(new Platform(0, GROUND_Y, WORLD_WIDTH, 40));
+
+        worldObjects.add(new Wall(300, GROUND_Y - 120, 80, 120));
+        worldObjects.add(new Wall(900, GROUND_Y - 160, 80, 160));
+        worldObjects.add(new Wall(2100, GROUND_Y - 140, 80, 140));
+
+        worldObjects.add(new Platform(200, 280, 300, 20));
+        worldObjects.add(new Platform(600, 200, 250, 20));
+        worldObjects.add(new Platform(1000, 260, 350, 20));
+        worldObjects.add(new Platform(1500, 220, 300, 20));
+        worldObjects.add(new Platform(1900, 300, 300, 20));
+
+        worldObjects.add(new Cover(450, GROUND_Y - 100, 80, 100));
+        worldObjects.add(new Cover(1200, GROUND_Y - 120, 100, 120));
+        worldObjects.add(new Cover(1750, GROUND_Y - 100, 80, 100));
+
+        worldObjects.add(new Crate(650, GROUND_Y - 40));
+        worldObjects.add(new Crate(690, GROUND_Y - 40));
+        worldObjects.add(new Crate(1300, GROUND_Y - 40));
+        worldObjects.add(new Crate(1600, GROUND_Y - 40));
+        worldObjects.add(new Crate(1650, GROUND_Y - 40));
+
+        // Добавь в список объектов:
+        worldObjects.add(new AmmoStation(800, GROUND_Y - 60));
+        worldObjects.add(new AmmoStation(1400, 240)); // на платформе
+    }
 
     // ================= PLAYER =================
 
     public PlayerState createPlayer(int id) {
         PlayerState p = new PlayerState();
         p.id = id;
-        p.x = 200 + id * 100;
+
+        // Игрок 1 — слева, Игрок 2 — справа, и т.д.
+        if (id % 2 == 1) {
+            p.x = 200; // слева
+        } else {
+            p.x = WORLD_WIDTH - 300; // справа
+        }
         p.y = 200;
-        p.vx = 0;
-        p.vy = 0;
-        System.out.println("Created player " + id + " at (" + p.x + ", " + p.y + ")");
-        p.onGround = false;
+
         players.put(id, p);
+        System.out.println("Created player " + id + " at (" + p.x + ", " + p.y + ")");
         return p;
     }
 
@@ -62,16 +111,15 @@ public final class WorldState {
 
         p.vx = dx * 6;
 
-        // Прыжок
         if (jump && p.onGround) {
             p.vy = -12;
             p.onGround = false;
         }
 
-        // Стрельба
-        if (shoot && p.shootCooldown == 0) {
+        if (shoot && p.shootCooldown == 0 && p.ammo > 0) {
             spawnBullet(p);
             p.shootCooldown = 15;
+            p.ammo--; // ← уменьшаем патроны
         }
     }
 
@@ -85,27 +133,103 @@ public final class WorldState {
 
     private void updatePhysics() {
         for (PlayerState p : players.values()) {
-            // Гравитация
-            if (!p.onGround) {
-                p.vy += 0.6; // гравитация
-            } else {
+            // Защита от вылета за границы
+            if (p.x < -100 || p.x > WORLD_WIDTH + 100 || p.y < -100 || p.y > GROUND_Y + 500) {
+                p.x = 200;
+                p.y = 200;
+                p.vx = 0;
                 p.vy = 0;
-            }
-
-            // Применяем скорость
-            p.x += p.vx;
-            p.y += p.vy;
-
-            // Простая коллизия с землёй (GROUND_Y = 400, высота игрока = 64)
-            if (p.y >= 400 - 64) {
-                p.y = 400 - 64;
-                p.vy = 0;
-                p.onGround = true;
-            } else {
                 p.onGround = false;
             }
 
-            // Трение (останавливаем по горизонтали)
+            // 1. Горизонтальное движение
+            p.x += p.vx;
+
+            // 2. Гравитация с ограничением скорости
+            p.vy += 0.6;
+            if (p.vy > 15) p.vy = 15; // предотвращает tunneling
+
+            p.y += p.vy;
+
+            // 3. Сбрасываем onGround
+            p.onGround = false;
+
+            // 4. Обработка коллизий со всеми solid-объектами
+            for (WorldObject obj : worldObjects) {
+                if (!obj.isAlive() || !obj.isSolid()) continue;
+
+                double playerRight = p.x + PLAYER_WIDTH;
+                double playerBottom = p.y + PLAYER_HEIGHT;
+                double objectRight = obj.getX() + obj.getW();
+                double objectBottom = obj.getY() + obj.getH();
+
+                // Проверка пересечения
+                if (playerRight > obj.getX() && p.x < objectRight &&
+                        playerBottom > obj.getY() && p.y < objectBottom) {
+
+                    // === ПЛАТФОРМА: проходима снизу ===
+                    if (obj instanceof Platform && p.vy >= 0 && p.y < obj.getY()) {
+                        p.y = obj.getY() - PLAYER_HEIGHT;
+                        p.vy = 0;
+                        p.onGround = true;
+                        break; // одна платформа за раз
+                    }
+                    // === СТЕНЫ / ЯЩИКИ: полная коллизия с выталкиванием ===
+                    else {
+                        // Вычисляем перекрытия
+                        double overlapLeft = playerRight - obj.getX();     // слева
+                        double overlapRight = objectRight - p.x;           // справа
+                        double overlapTop = playerBottom - obj.getY();     // сверху
+                        double overlapBottom = objectBottom - p.y;         // снизу
+
+                        // Находим минимальное перекрытие
+                        double minHorizontal = Math.min(overlapLeft, overlapRight);
+                        double minVertical = Math.min(overlapTop, overlapBottom);
+                        double minOverlap = Math.min(minHorizontal, minVertical);
+
+                        // Выталкиваем в сторону минимального перекрытия
+                        if (minOverlap == overlapLeft && overlapLeft > 0) {
+                            p.x = obj.getX() - PLAYER_WIDTH;
+                            p.vx = 0;
+                        } else if (minOverlap == overlapRight && overlapRight > 0) {
+                            p.x = objectRight;
+                            p.vx = 0;
+                        } else if (minOverlap == overlapTop && overlapTop > 0) {
+                            p.y = obj.getY() - PLAYER_HEIGHT;
+                            p.vy = 0;
+                            p.onGround = true;
+                        } else if (minOverlap == overlapBottom && overlapBottom > 0) {
+                            p.y = objectBottom;
+                            p.vy = 0;
+                        }
+                    }
+                }
+            }
+
+            // Проверка взаимодействия с AmmoStation
+            for (WorldObject obj : worldObjects) {
+                if (obj instanceof AmmoStation station && station.isActive()) {
+                    if (p.x + PLAYER_WIDTH > station.getX() &&
+                            p.x < station.getX() + station.getW() &&
+                            p.y + PLAYER_HEIGHT > station.getY() &&
+                            p.y < station.getY() + station.getH()) {
+
+                        if (station.refillAmmo()) {
+                            p.ammo = PlayerState.MAX_AMMO; // нужно добавить поле ammo в PlayerState
+                            System.out.println("Player " + p.id + " refilled ammo!");
+                        }
+                    }
+                }
+            }
+
+            // 5. Защита от падения в бездну
+            if (p.y > GROUND_Y + 200) {
+                p.y = GROUND_Y - PLAYER_HEIGHT;
+                p.vy = 0;
+                p.onGround = true;
+            }
+
+            // 6. Трение по горизонтали
             p.vx *= 0.8;
             if (Math.abs(p.vx) < 0.1) p.vx = 0;
         }
@@ -125,16 +249,23 @@ public final class WorldState {
             ServerBullet b = it.next();
             b.x += b.vx;
 
-            // Удаление за пределами экрана
-            if (b.x < -100 || b.x > 3000) {
+            if (b.x < -100 || b.x > WORLD_WIDTH + 100) {
                 it.remove();
                 continue;
             }
 
-            // Проверка попадания
-            for (PlayerState p : players.values()) {
-                if (p.id == b.ownerId) continue; // нельзя стрелять в себя
+            // Коллизия с объектами
+            for (WorldObject obj : worldObjects) {
+                if (obj.blocksBullets() && hitBulletObject(b, obj)) {
+                    it.remove();
+                    break;
+                }
+            }
 
+            // Коллизия с игроками
+            if (!bullets.contains(b)) continue; // если уже удалена
+            for (PlayerState p : players.values()) {
+                if (p.id == b.ownerId) continue;
                 if (hit(b, p)) {
                     p.hp -= 10;
                     if (p.hp <= 0) p.hp = 0;
@@ -151,6 +282,11 @@ public final class WorldState {
         return dx < 40 && dy < 60;
     }
 
+    private boolean hitBulletObject(ServerBullet b, WorldObject obj) {
+        return b.x >= obj.getX() && b.x <= obj.getX() + obj.getW() &&
+                b.y >= obj.getY() && b.y <= obj.getY() + obj.getH();
+    }
+
     // ================= BULLETS =================
 
     private void spawnBullet(PlayerState p) {
@@ -160,11 +296,16 @@ public final class WorldState {
 
     public void removePlayer(int id) {
         players.remove(id);
-        // Опционально: удали пули этого игрока
         bullets.removeIf(b -> b.ownerId == id);
     }
 
     public List<ServerBullet> getBullets() {
         return bullets;
+    }
+
+    // ================= WORLD ACCESS =================
+
+    public List<WorldObject> getWorldObjects() {
+        return worldObjects;
     }
 }

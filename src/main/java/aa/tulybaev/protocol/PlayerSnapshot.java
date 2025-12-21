@@ -11,15 +11,17 @@ public final class PlayerSnapshot {
     private final float y;
     private final boolean facingRight;
     private final int hp;
+    private final int ammo;
     private final boolean isMoving;
     private final boolean isOnGround;
 
-    public PlayerSnapshot(int id, float x, float y, boolean facingRight, int hp, boolean isMoving, boolean isOnGround) {
+    public PlayerSnapshot(int id, float x, float y, boolean facingRight, int hp, int ammo, boolean isMoving, boolean isOnGround) {
         this.id = id;
         this.x = x;
         this.y = y;
         this.facingRight = facingRight;
         this.hp = hp;
+        this.ammo = ammo;
         this.isMoving = isMoving;
         this.isOnGround = isOnGround;
     }
@@ -31,6 +33,7 @@ public final class PlayerSnapshot {
         out.writeFloat(y);
         out.writeBoolean(facingRight);
         out.writeInt(hp);
+        out.writeInt(ammo);
         out.writeBoolean(isMoving);
         out.writeBoolean(isOnGround);
     }
@@ -43,11 +46,13 @@ public final class PlayerSnapshot {
                 in.readFloat(),
                 in.readBoolean(),
                 in.readInt(),
+                in.readInt(),
                 in.readBoolean(),
                 in.readBoolean()
         );
     }
 
+    public int ammo() { return ammo; }
     public int id() { return id; }
     public float x() { return x; }
     public float y() { return y; }

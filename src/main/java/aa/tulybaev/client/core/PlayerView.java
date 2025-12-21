@@ -10,6 +10,7 @@ public record PlayerView(
         float y,
         boolean facingRight,
         int hp,
-        boolean isMoving,      // ← новое
-        boolean isOnGround     // ← новое
+        int ammo, // ← новое
+        boolean isMoving,
+        boolean isOnGround
 ) {}
