@@ -6,7 +6,6 @@ import java.io.InputStream;
 public class SoundManager {
 
     public static void play(String path) {
-        // Запускаем в отдельном потоке, чтобы не блокировать игру
         new Thread(() -> {
             try {
                 InputStream audioSrc = SoundManager.class.getResourceAsStream(path);
@@ -16,11 +15,11 @@ public class SoundManager {
                 }
 
                 AudioInputStream audioIn = AudioSystem.getAudioInputStream(audioSrc);
+
                 Clip clip = AudioSystem.getClip();
                 clip.open(audioIn);
                 clip.start();
 
-                // Ждём завершения воспроизведения, чтобы корректно закрыть ресурсы
                 while (!clip.isRunning()) {
                     Thread.sleep(10);
                 }

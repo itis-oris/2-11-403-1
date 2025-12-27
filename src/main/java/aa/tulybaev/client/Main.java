@@ -13,17 +13,12 @@ import javax.swing.*;
 public class Main {
 
     private static GameFrame frame;
-    private static GameLoop gameLoop;
     private static Thread gameThread;
     private static NetworkClient network;
-    private static GameState gameState;
     private static GamePanel currentPanel = null;
+    private static InputHandler input;
 
-    public static void main(String[] args) throws Exception {
-        gameState = GameStateStorage.load();
-        System.out.println("Loaded lastPlayerId: " + gameState.lastPlayerId);
-
-        // УДАЛИ всё, что связано с World, GamePanel здесь!
+    public static void main(String[] args) {
         frame = new GameFrame();
         frame.startGame = Main::startGameImpl;
         frame.restartGame = Main::restartGameImpl;
@@ -33,42 +28,36 @@ public class Main {
     }
 
 
-    // Реализация GameFrame.startGame
     public static void startGameImpl() {
         try {
             World world = new World();
             SnapshotBuffer snapshotBuffer = new SnapshotBuffer();
             InputHandler input = new InputHandler();
-            network = new NetworkClient(snapshotBuffer);
-            network.setConnectionCallback(id -> {
-                System.out.println("CLIENT: Local player ID set to: " + id);
-                world.setLocalPlayerId(id);
-            });
+            NetworkClient network = new NetworkClient(snapshotBuffer);
 
-            // Используем ОДИН GamePanel
-            if (currentPanel == null) {
-                currentPanel = new GamePanel(world);
-                currentPanel.addKeyListener(input);
-                currentPanel.setFocusable(true);
-                frame.setGamePanel(currentPanel);
-            } else {
-                currentPanel.setWorld(world);
-            }
+            network.setConnectionCallback(id -> world.setLocalPlayerId(id));
 
-            gameLoop = new GameLoop(world, currentPanel, frame, network, snapshotBuffer, input);
-            gameThread = new Thread(gameLoop, "GameLoop");
+            GamePanel panel = new GamePanel(world);
+            panel.addKeyListener(input);
+            panel.setFocusable(true);
+
+            currentPanel = panel;
+            Main.input = input;
+            Main.network = network;
+
+            frame.setGamePanel(panel);
+            GameLoop loop = new GameLoop(world, panel, network, snapshotBuffer, input);
+            gameThread = new Thread(loop, "GameLoop");
             gameThread.start();
 
             frame.showGame();
-            SwingUtilities.invokeLater(() -> currentPanel.requestFocusInWindow());
+            SwingUtilities.invokeLater(() -> panel.requestFocusInWindow());
         } catch (Exception e) {
             e.printStackTrace();
         }
     }
 
-    // Реализация GameFrame.restartGame
     public static void restartGameImpl() {
-        // Останавливаем текущую игру
         if (gameThread != null) {
             gameThread.interrupt();
             gameThread = null;
@@ -78,18 +67,18 @@ public class Main {
             network = null;
         }
 
-        // Сохраняем результат
-        if (network != null && network.getPlayerId() >= 0) {
-            gameState.lastPlayerId = network.getPlayerId();
-            GameStateStorage.save(gameState);
+        if (currentPanel != null) {
+            currentPanel = null;
         }
 
-        // Запускаем новую игру
         startGameImpl();
     }
 
-    // Метод для GameOver из GameLoop
     public static void triggerGameOver() {
         SwingUtilities.invokeLater(() -> frame.showGameOver());
+    }
+
+    public static void triggerVictory() {
+        SwingUtilities.invokeLater(() -> frame.showVictory());
     }
 }

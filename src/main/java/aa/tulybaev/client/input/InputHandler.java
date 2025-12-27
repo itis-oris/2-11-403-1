@@ -50,14 +50,6 @@ public class InputHandler extends KeyAdapter {
         return 0f;
     }
 
-    public float getDy() {
-        if (jumpPressed) {
-            jumpPressed = false; // одноразовый прыжок
-            return -1f;
-        }
-        return 0f;
-    }
-
 
     public boolean isLeft() {
         return left;

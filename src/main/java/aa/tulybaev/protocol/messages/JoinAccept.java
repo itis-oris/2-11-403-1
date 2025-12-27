@@ -1,4 +1,8 @@
-package aa.tulybaev.protocol;
+package aa.tulybaev.protocol.messages;
+
+
+import aa.tulybaev.protocol.core.GameMessage;
+import aa.tulybaev.protocol.core.MessageType;
 
 import java.io.*;
 
@@ -12,8 +16,9 @@ public final class JoinAccept implements GameMessage {
 
     @Override
     public MessageType type() {
-        return MessageType.JOIN_ACCEPT; // ← было JOIN
+        return MessageType.JOIN_ACCEPT;
     }
+
 
     @Override
     public void write(DataOutputStream out) throws IOException {

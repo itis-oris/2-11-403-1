@@ -1,18 +1,15 @@
 package aa.tulybaev.client.core;
 
-import aa.tulybaev.protocol.BulletSnapshot;
-import aa.tulybaev.protocol.PlayerSnapshot;
-import aa.tulybaev.protocol.WorldSnapshotMessage;
+
+import aa.tulybaev.protocol.messages.snapshots.BulletSnapshot;
+import aa.tulybaev.protocol.messages.snapshots.PlayerSnapshot;
+import aa.tulybaev.protocol.messages.snapshots.WorldSnapshotMessage;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Интерполированное состояние мира
- * Используется ТОЛЬКО для отрисовки
- */
 public final class InterpolatedSnapshot {
 
     private final Map<Integer, PlayerView> players = new HashMap<>();
@@ -40,15 +37,13 @@ public final class InterpolatedSnapshot {
                             y,
                             p2.facingRight(),
                             p2.hp(),
-                            p2.ammo(), // ← новое
+                            p2.ammo(),
                             p2.isMoving(),
                             p2.isOnGround()
                     )
             );
         }
 
-        // ===== BULLETS =====
-        // Пули не интерполируем — просто берём из нового снапшота
         this.bullets.addAll(b.bullets());
     }
     private PlayerSnapshot findPlayer(WorldSnapshotMessage snap, int id) {

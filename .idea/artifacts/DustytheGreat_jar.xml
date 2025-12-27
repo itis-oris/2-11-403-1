@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="DustytheGreat:jar">
+    <output-path>$PROJECT_DIR$/out/artifacts/DustytheGreat_jar</output-path>
+    <root id="archive" name="DustytheGreat.jar">
+      <element id="module-output" name="DustytheGreat" />
+    </root>
+  </artifact>
+</component>

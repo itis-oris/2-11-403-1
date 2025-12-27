@@ -1,4 +1,4 @@
-package aa.tulybaev.protocol;
+package aa.tulybaev.protocol.core;
 
 import java.io.*;
 

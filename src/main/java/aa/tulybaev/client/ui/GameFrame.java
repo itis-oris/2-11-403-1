@@ -7,6 +7,7 @@ public class GameFrame extends JFrame {
 
     private final CardLayout cardLayout;
     private final JPanel mainPanel;
+    private JPanel victoryPanel;
 
     private final JPanel menuPanel;
     private final JPanel gameOverPanel;
@@ -25,10 +26,13 @@ public class GameFrame extends JFrame {
         mainPanel = new JPanel(cardLayout);
 
         menuPanel = createMenuPanel();
-        gameOverPanel = createGameOverPanel();
-
         mainPanel.add(menuPanel, "MENU");
+
+        gameOverPanel = createGameOverPanel();
         mainPanel.add(gameOverPanel, "GAME_OVER");
+
+        victoryPanel = createVictoryPanel();
+        mainPanel.add(victoryPanel, "VICTORY");
 
         add(mainPanel);
         pack();
@@ -49,7 +53,7 @@ public class GameFrame extends JFrame {
         startButton.setAlignmentX(CENTER_ALIGNMENT);
         startButton.addActionListener(e -> {
             if (startGame != null) {
-                startGame.run(); // ← ПРАВИЛЬНЫЙ ВЫЗОВ
+                startGame.run();
             }
         });
 
@@ -76,7 +80,6 @@ public class GameFrame extends JFrame {
         restartButton.setFont(new Font("Arial", Font.PLAIN, 24));
         restartButton.setAlignmentX(CENTER_ALIGNMENT);
         restartButton.addActionListener(e -> {
-            // Перезапуск игры
             restartGame();
         });
 
@@ -89,6 +92,34 @@ public class GameFrame extends JFrame {
         return panel;
     }
 
+    private JPanel createVictoryPanel() {
+        JPanel panel = new JPanel();
+        panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
+        panel.setBorder(BorderFactory.createEmptyBorder(100, 50, 100, 50));
+
+        JLabel title = new JLabel("VICTORY!");
+        title.setFont(new Font("Arial", Font.BOLD, 36));
+        title.setForeground(Color.GREEN);
+        title.setAlignmentX(CENTER_ALIGNMENT);
+
+        JButton restartButton = new JButton("Restart");
+        restartButton.setFont(new Font("Arial", Font.PLAIN, 24));
+        restartButton.setAlignmentX(CENTER_ALIGNMENT);
+        restartButton.addActionListener(e -> restartGame());
+
+        panel.add(Box.createVerticalGlue());
+        panel.add(title);
+        panel.add(Box.createVerticalStrut(30));
+        panel.add(restartButton);
+        panel.add(Box.createVerticalGlue());
+
+        return panel;
+    }
+
+    public void showVictory() {
+        cardLayout.show(mainPanel, "VICTORY");
+    }
+
     public void setGamePanel(GamePanel panel) {
         if (currentGamePanel != null) {
             mainPanel.remove(currentGamePanel);
@@ -96,7 +127,6 @@ public class GameFrame extends JFrame {
         currentGamePanel = panel;
         mainPanel.add(currentGamePanel, "PLAYING");
 
-        // Фиксируем размер окна
         pack();
         setLocationRelativeTo(null);
     }

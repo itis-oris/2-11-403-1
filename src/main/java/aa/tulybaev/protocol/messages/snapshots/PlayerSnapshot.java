@@ -1,4 +1,5 @@
-package aa.tulybaev.protocol;
+package aa.tulybaev.protocol.messages.snapshots;
+
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;

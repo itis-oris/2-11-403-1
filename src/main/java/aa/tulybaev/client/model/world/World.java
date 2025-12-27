@@ -6,51 +6,29 @@ import aa.tulybaev.client.model.entity.Bullet;
 import aa.tulybaev.client.model.entity.RemotePlayer;
 import aa.tulybaev.client.model.entity.RenderablePlayer;
 import aa.tulybaev.client.model.world.objects.*;
-import aa.tulybaev.protocol.BulletSnapshot;
+import aa.tulybaev.protocol.messages.snapshots.BulletSnapshot;
 
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
-/**
- * Клиентский мир.
- * Хранит ТОЛЬКО визуальное состояние для рендера.
- * Не содержит логики, физики, input или сетевых решений.
- */
 public final class World {
-
-    // ================= PLAYERS =================
 
     private int localPlayerId = -1;
 
-    /** Визуальные представления удалённых игроков */
     private final Map<Integer, RemotePlayer> remotePlayers = new ConcurrentHashMap<>();
 
-    // ================= BULLETS =================
-
-    /** Визуальные пули (из snapshot’ов) */
     private final Map<Integer, Bullet> bullets = new ConcurrentHashMap<>();
-
-    // ================= LEVEL =================
 
     private final List<WorldObject> objects = new ArrayList<>();
     private static final int GROUND_Y = 400;
     private static final int WORLD_WIDTH = 3000;
 
-    // ================= INIT =================
-
     public World() {
         buildLevel();
     }
 
-    // ================= SNAPSHOT =================
-
-    /**
-     * Применяет интерполированное состояние мира.
-     * ЕДИНСТВЕННАЯ точка изменения состояния.
-     */
     public void applyInterpolated(InterpolatedSnapshot snapshot) {
 
-        // ===== PLAYERS =====
         for (PlayerView pv : snapshot.players().values()) {
             boolean isLocal = (pv.id() == localPlayerId);
             remotePlayers
@@ -58,14 +36,11 @@ public final class World {
                     .setState(pv.x(), pv.y(), pv.facingRight(), pv.hp(), pv.ammo(), pv.isMoving(), pv.isOnGround());
         }
 
-        // ===== BULLETS =====
         bullets.clear();
         for (BulletSnapshot bs : snapshot.bullets()) {
             bullets.put(bs.id(), new Bullet(bs.x(), bs.y(), bs.vx()));
         }
     }
-
-    // ================= LEVEL =================
 
     private void buildLevel() {
         objects.add(new Platform(0, GROUND_Y, WORLD_WIDTH, 40));
@@ -91,10 +66,8 @@ public final class World {
         objects.add(new Crate(1650, GROUND_Y - 40));
 
         objects.add(new AmmoStation(800, GROUND_Y - 60));
-        objects.add(new AmmoStation(1400, 240)); // на платформе
+        objects.add(new AmmoStation(1400, 240));
     }
-
-    // ================= RENDER ACCESS =================
 
     public List<RenderablePlayer> getRenderablePlayers() {
         return new ArrayList<>(remotePlayers.values());
@@ -118,22 +91,6 @@ public final class World {
 
     public RemotePlayer getCameraTarget() {
         return remotePlayers.get(localPlayerId);
-    }
-    // ================= META =================
-
-    public int getGroundY() {
-        return GROUND_Y;
-    }
-
-    public List<Platform> getPlatforms() {
-        return objects.stream()
-                .filter(obj -> obj instanceof Platform)
-                .map(obj -> (Platform) obj)
-                .toList(); // или collect(Collectors.toList()), если Java < 16
-    }
-
-    public int getWorldWidth() {
-        return WORLD_WIDTH;
     }
 
     // ================= ID =================

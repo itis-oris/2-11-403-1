@@ -1,7 +1,7 @@
 package aa.tulybaev.server;
 
 public class ServerBullet {
-    public static int nextId = 1; // ← статический счётчик
+    public static int nextId = 1;
 
     public final int id;
     public double x, y, vx;

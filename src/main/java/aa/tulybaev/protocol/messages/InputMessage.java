@@ -1,4 +1,8 @@
-package aa.tulybaev.protocol;
+package aa.tulybaev.protocol.messages;
+
+
+import aa.tulybaev.protocol.core.GameMessage;
+import aa.tulybaev.protocol.core.MessageType;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -20,7 +24,7 @@ public final class InputMessage implements GameMessage {
 
     @Override
     public MessageType type() {
-        return MessageType.INPUT; // ← ОБЯЗАТЕЛЬНО!
+        return MessageType.INPUT;
     }
 
     @Override

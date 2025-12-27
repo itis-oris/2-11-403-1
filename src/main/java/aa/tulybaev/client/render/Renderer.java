@@ -12,10 +12,6 @@ import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.util.List;
 
-/**
- * Render-pass.
- * Отвечает ТОЛЬКО за отрисовку текущего состояния мира.
- */
 public final class Renderer {
 
     private static final int SCREEN_W = 960;
@@ -37,21 +33,16 @@ public final class Renderer {
         this.background = SpriteLoader.load("/backgrounds/forest.png");
     }
 
-    // ================= ENTRY POINT =================
-
-    // ================= ENTRY POINT =================
 
     public void render(Graphics2D g) {
-        // === 0. Обновляем камеру СРАЗУ ===
         RenderablePlayer cameraTarget = world.getCameraTarget();
         if (cameraTarget != null) {
             camera.follow(cameraTarget, SCREEN_W, SCREEN_H);
         }
 
-        // === 1. Фон (с актуальной камерой) ===
         if (background != null) {
             int bgWidth = background.getWidth();
-            int camX = camera.getX(); // ← Теперь camX = 200
+            int camX = camera.getX();
             int startX = -(camX % bgWidth);
             for (int x = startX; x < SCREEN_W; x += bgWidth) {
                 g.drawImage(background, x, 0, null);
@@ -61,23 +52,11 @@ public final class Renderer {
             g.fillRect(0, 0, SCREEN_W, SCREEN_H);
         }
 
-        // === 2. Рисуем остальное с той же камерой ===
         drawWorldObjects(g);
         if (cameraTarget != null) {
             drawPlayers(g);
             drawBullets(g);
             drawHud(g);
-        }
-    }
-
-    // ================= DRAW SECTIONS =================
-
-    private void drawBackground(Graphics2D g) {
-        int bgWidth = background.getWidth();
-        int startX = -(camera.getX() % bgWidth);
-
-        for (int x = startX; x < SCREEN_W; x += bgWidth) {
-            g.drawImage(background, x, 0, null);
         }
     }
 
@@ -119,22 +98,11 @@ public final class Renderer {
         this.world = newWorld;
     }
 
-
-
-    // ================= LOW-LEVEL =================
-
     private void drawPlayer(Graphics2D g, RenderablePlayer p) {
-
-        // ВАЖНО: визуальное время живёт здесь
         p.advanceAnimation();
 
         BufferedImage img = p.getFrame();
         if (img == null) return;
-
-        int drawX = p.getDrawX();
-        int drawY = p.getDrawY();
-        int camX = camera.getX();
-        int camY = camera.getY();
 
         int w = p.getWidth();
         int h = p.getHeight();

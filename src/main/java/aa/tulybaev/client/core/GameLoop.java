@@ -9,6 +9,8 @@ import aa.tulybaev.client.render.components.SoundManager;
 import aa.tulybaev.client.ui.GameFrame;
 import aa.tulybaev.client.ui.GamePanel;
 
+import static aa.tulybaev.client.Main.triggerGameOver;
+
 public final class GameLoop implements Runnable {
 
     private static final int FPS = 60;
@@ -18,21 +20,18 @@ public final class GameLoop implements Runnable {
     private final NetworkClient network;
     private final SnapshotBuffer snapshotBuffer;
     private final InputHandler input;
-    private final GameFrame frame;
 
     private int renderTick = 0;
 
     public GameLoop(
             World world,
             GamePanel panel,
-            GameFrame frame,          // ← новое
             NetworkClient network,
             SnapshotBuffer snapshotBuffer,
             InputHandler input
     ) {
         this.world = world;
         this.panel = panel;
-        this.frame = frame;       // ← сохраняем
         this.network = network;
         this.snapshotBuffer = snapshotBuffer;
         this.input = input;
@@ -54,12 +53,11 @@ public final class GameLoop implements Runnable {
                 boolean jump = input.consumeJump();
                 boolean shoot = input.consumeShoot();
 
-                // 2. Отправляем только ввод (если подключены)
+                // 2. Отправляем только ввод
                 if (network.getPlayerId() >= 0) {
                     network.sendInput(dx, jump, shoot);
                 }
 
-                // После отправки ввода:
                 if (shoot) {
                     SoundManager.play("/sounds/sound-fire.wav");
                 }
@@ -71,15 +69,10 @@ public final class GameLoop implements Runnable {
                 // 3. Применяем снапшоты для рендера
                 InterpolatedSnapshot snap = snapshotBuffer.getInterpolated(renderTick);
                 if (snap != null) {
-                    System.out.println("Applying snapshot with " + snap.players().size() + " players");
                     world.applyInterpolated(snap);
                     world.getBullets().removeIf(bullet -> !bullet.isAlive());
                     for (Bullet b : world.getBullets()) {
                         b.update(); // для плавности между снапшотами
-                    }
-                    world.getBullets().removeIf(bullet -> !bullet.isAlive());
-                    for (Bullet b : world.getBullets()) {
-                        b.update(); // летят даже если снапшот старый
                     }
                 } else {
                     System.out.println("No snapshot available yet");
@@ -89,13 +82,12 @@ public final class GameLoop implements Runnable {
                 RemotePlayer local = world.getLocalPlayer();
                 if (local != null) {
                     if (local.getHp() <= 0) {
-                        // Игрок умер
-                        aa.tulybaev.client.Main.triggerGameOver();
+                        triggerGameOver();
                     }
                     panel.setHudData(
                             local.getHp(),
                             local.getMaxHp(),
-                            local.getAmmo(), // ← теперь есть!
+                            local.getAmmo(),
                             shoot
                     );
                 }

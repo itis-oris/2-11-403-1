@@ -8,7 +8,6 @@ public class SpriteLoader {
 
     public static BufferedImage load(String path) {
         try {
-            System.out.println("Loaded sprite: " + path);
             return ImageIO.read(
                     SpriteLoader.class.getResourceAsStream(path)
             );

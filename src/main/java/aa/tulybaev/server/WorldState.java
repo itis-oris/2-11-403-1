@@ -16,35 +16,18 @@ public final class WorldState {
     private static final int GROUND_Y = 400;
     private static final int WORLD_WIDTH = 3000;
 
-    // ================= PLAYERS =================
-
-    public static final class PlayerState {
-        public int id;
-        public double x, y;
-        public double vx, vy;
-        public boolean facingRight = true;
-        public int hp = 100;
-        public int shootCooldown = 0;
-        public boolean onGround = false;
-        public int ammo = 100; // ← новое поле
-        private static final int MAX_AMMO = 100;
-
-        public void refillAmmo() {
-            this.ammo = MAX_AMMO;
-        }
-    }
+    private Server server;
 
     private final Map<Integer, PlayerState> players = new ConcurrentHashMap<>();
     private final List<ServerBullet> bullets = new ArrayList<>();
     private final List<WorldObject> worldObjects = new ArrayList<>(); // ← ДОБАВЛЕНО
 
-    // ================= CONSTRUCTOR =================
 
-    public WorldState() {
-        buildLevel(); // ← ИНИЦИАЛИЗАЦИЯ УРОВНЯ
+    public WorldState(Server server) {
+        this.server = server; // ← сохраняем ссылку
+        buildLevel();
     }
 
-    // ================= LEVEL =================
 
     private void buildLevel() {
         worldObjects.add(new Platform(0, GROUND_Y, WORLD_WIDTH, 40));
@@ -74,22 +57,19 @@ public final class WorldState {
         worldObjects.add(new AmmoStation(1400, 240)); // на платформе
     }
 
-    // ================= PLAYER =================
 
     public PlayerState createPlayer(int id) {
         PlayerState p = new PlayerState();
         p.id = id;
 
-        // Игрок 1 — слева, Игрок 2 — справа, и т.д.
         if (id % 2 == 1) {
-            p.x = 200; // слева
+            p.x = 200;
         } else {
-            p.x = WORLD_WIDTH - 300; // справа
+            p.x = WORLD_WIDTH - 300;
         }
         p.y = 200;
 
         players.put(id, p);
-        System.out.println("Created player " + id + " at (" + p.x + ", " + p.y + ")");
         return p;
     }
 
@@ -97,7 +77,7 @@ public final class WorldState {
         return players.values();
     }
 
-    // ================= INPUT =================
+
 
     public void applyInput(int playerId, float dx, boolean jump, boolean shoot) {
         PlayerState p = players.get(playerId);
@@ -215,8 +195,7 @@ public final class WorldState {
                             p.y < station.getY() + station.getH()) {
 
                         if (station.refillAmmo()) {
-                            p.ammo = PlayerState.MAX_AMMO; // нужно добавить поле ammo в PlayerState
-                            System.out.println("Player " + p.id + " refilled ammo!");
+                            p.refillAmmo();
                         }
                     }
                 }
@@ -268,13 +247,20 @@ public final class WorldState {
                 if (p.id == b.ownerId) continue;
                 if (hit(b, p)) {
                     p.hp -= 10;
-                    if (p.hp <= 0) p.hp = 0;
+                    if (p.hp <= 0) {
+                        p.hp = 0;
+                        // ОТПРАВИТЬ GAME_OVER
+                        server.onPlayerKilled(b.ownerId, p.id);
+
+                        server.removePlayer(p.id);
+                    }
                     it.remove();
                     break;
                 }
             }
         }
     }
+
 
     private boolean hit(ServerBullet b, PlayerState p) {
         double dx = Math.abs(b.x - p.x);
@@ -301,11 +287,5 @@ public final class WorldState {
 
     public List<ServerBullet> getBullets() {
         return bullets;
-    }
-
-    // ================= WORLD ACCESS =================
-
-    public List<WorldObject> getWorldObjects() {
-        return worldObjects;
     }
 }

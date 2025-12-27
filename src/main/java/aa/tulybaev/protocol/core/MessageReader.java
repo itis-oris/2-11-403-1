@@ -1,4 +1,8 @@
-package aa.tulybaev.protocol;
+package aa.tulybaev.protocol.core;
+
+
+import aa.tulybaev.protocol.messages.*;
+import aa.tulybaev.protocol.messages.snapshots.WorldSnapshotMessage;
 
 import java.io.*;
 
@@ -14,7 +18,8 @@ public final class MessageReader {
             case JOIN_ACCEPT -> JoinAccept.read(in);
             case INPUT -> InputMessage.read(in);
             case SNAPSHOT -> WorldSnapshotMessage.read(in);
-            case DISCONNECT -> throw new IOException("DISCONNECT not implemented");
+            case GAME_OVER -> GameOverMessage.read(in);
+            case DISCONNECT -> DisconnectMessage.read(in);
         };
     }
 }

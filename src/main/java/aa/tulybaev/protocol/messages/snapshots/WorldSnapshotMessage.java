@@ -1,4 +1,8 @@
-package aa.tulybaev.protocol;
+package aa.tulybaev.protocol.messages.snapshots;
+
+
+import aa.tulybaev.protocol.core.GameMessage;
+import aa.tulybaev.protocol.core.MessageType;
 
 import java.io.*;
 import java.util.*;

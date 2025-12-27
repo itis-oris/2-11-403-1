@@ -1,7 +1,6 @@
 package aa.tulybaev.client.model.world.objects;
 
 import aa.tulybaev.client.model.entity.Bullet;
-import aa.tulybaev.client.render.components.SpriteLoader;
 
 import java.awt.*;
 

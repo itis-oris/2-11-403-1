@@ -13,10 +13,10 @@ public final class RemotePlayer implements RenderablePlayer {
     private int hitFlashTimer = 0;
     private static final double SCALE = 0.25;
     private final int id;
-    private int ammo = 100; // ← новое поле
-    private static final int MAX_AMMO = 100;
+    private int ammo = 25;
+    private static final int MAX_AMMO = 25;
 
-    // ===== ANIMATIONS =====
+    // Анимации
     private final Animation idle;
     private final Animation walk;
     private final Animation jump;
@@ -35,7 +35,6 @@ public final class RemotePlayer implements RenderablePlayer {
 
     public RemotePlayer(int id, boolean isLocal) {
         this.id = id;
-        String folder = isLocal ? "Player1" : "Player2";
         String prefix = isLocal ? "Player-1" : "Player-2";
         BufferedImage base = SpriteLoader.load("/sprites/" + (isLocal ? "Player1" : "Player2") + "/" + prefix + ".png");
         BufferedImage walk1 = SpriteLoader.load("/sprites/" + (isLocal ? "Player1" : "Player2") + "/" + prefix + "-walk-1.png");
@@ -66,7 +65,7 @@ public final class RemotePlayer implements RenderablePlayer {
         this.y = (int) y;
         this.facingRight = facingRight;
         this.hp = hp;
-        this.ammo = ammo; // ← сохраняем патроны
+        this.ammo = ammo;
         updateAnimation(isMoving, isOnGround);
     }
 
@@ -116,18 +115,4 @@ public final class RemotePlayer implements RenderablePlayer {
     public int getHp() {
         return hp;
     }
-
-    public void setState(
-            float x,
-            float y,
-            boolean facingRight,
-            int hp
-    ) {
-        this.x = (int) x;
-        this.y = (int) y;
-        this.facingRight = facingRight;
-        this.hp = hp;
-    }
-
-
 }

@@ -1,12 +1,24 @@
 package aa.tulybaev.server;
 
-import aa.tulybaev.protocol.*;
+import aa.tulybaev.protocol.core.BinaryProtocol;
+import aa.tulybaev.protocol.core.GameMessage;
+import aa.tulybaev.protocol.messages.GameOverMessage;
+import aa.tulybaev.protocol.messages.InputMessage;
+import aa.tulybaev.protocol.messages.JoinAccept;
+import aa.tulybaev.protocol.messages.snapshots.BulletSnapshot;
+import aa.tulybaev.protocol.messages.snapshots.PlayerSnapshot;
+import aa.tulybaev.protocol.messages.snapshots.WorldSnapshotMessage;
+import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.util.Collection;
+import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -17,25 +29,52 @@ public class Server {
     private static final int TICK_RATE = 30;
 
     private final ServerSocket serverSocket;
-    private final WorldState world = new WorldState();
+    private final WorldState world = new WorldState(this);
     private final AtomicInteger nextId = new AtomicInteger(1);
     private int serverTick = 0;
+    private static final String SAVE_FILE = "save.json";
+    private ServerStats stats = new ServerStats();
 
-    // Регистр клиентов: playerId -> ClientHandler
     private final Set<ClientHandler> allClients = ConcurrentHashMap.newKeySet();
 
     public Server() throws Exception {
+        loadStats();
+
         this.serverSocket = new ServerSocket(PORT);
-        System.out.println("TCP Server started on port " + PORT);
-
-        // Запуск игрового цикла
         startGameLoop();
-
-        // Ожидание подключений
         acceptClients();
+
+        // Регистрируем shutdown hook для сохранения при завершении
+        Runtime.getRuntime().addShutdownHook(new Thread(this::saveStats));
     }
 
-    // ================= ПРИНЯТИЕ ПОДКЛЮЧЕНИЙ =================
+    private void loadStats() {
+        Path path = Paths.get(SAVE_FILE);
+        if (Files.exists(path)) {
+            try (Reader reader = Files.newBufferedReader(path)) {
+                ServerStats loaded = new Gson().fromJson(reader, ServerStats.class);
+                if (loaded != null) {
+                    this.stats = loaded;
+                    System.out.println("Статистика загружена из " + SAVE_FILE);
+                }
+            } catch (Exception e) {
+                System.err.println("Ошибка загрузки статистики: " + e.getMessage());
+                this.stats = new ServerStats(); // сброс при ошибке
+            }
+        } else {
+            System.out.println("Файл сохранения не найден. Создаём новый.");
+        }
+    }
+
+    private void saveStats() {
+        try (Writer writer = Files.newBufferedWriter(Paths.get(SAVE_FILE))) {
+            Gson gson = new GsonBuilder().setPrettyPrinting().create();
+            gson.toJson(stats, writer);
+            System.out.println("Статистика сохранена в " + SAVE_FILE);
+        } catch (Exception e) {
+            System.err.println("Ошибка сохранения статистики: " + e.getMessage());
+        }
+    }
 
     private void acceptClients() {
         Thread acceptor = new Thread(() -> {
@@ -54,8 +93,6 @@ public class Server {
         acceptor.start();
     }
 
-    // ================= ИГРОВОЙ ЦИКЛ (TICKER) =================
-
     private void startGameLoop() {
         Thread ticker = new Thread(() -> {
             long nsPerTick = 1_000_000_000L / TICK_RATE;
@@ -65,8 +102,8 @@ public class Server {
                 long now = System.nanoTime();
                 if (now - last >= nsPerTick) {
                     world.update();
-                    serverTick++; // ← увеличиваем каждый тик
-                    broadcastSnapshot(serverTick); // ← передаём явно
+                    serverTick++;
+                    broadcastSnapshot(serverTick);
                     last = now;
                 }
                 try {
@@ -78,11 +115,12 @@ public class Server {
         ticker.start();
     }
 
-    // ================= РАССЫЛКА СНАПШОТОВ =================
+    // Рассылаем снапшоты пользователям
 
     private void broadcastSnapshot(int tick) {
-        var players = world.getPlayers();
-        var playerSnapshots = players.stream()
+        Collection<PlayerState> players = world.getPlayers();
+
+        List<PlayerSnapshot> playerSnapshots = players.stream()
                 .map(p -> new PlayerSnapshot(
                         p.id,
                         (float) p.x,
@@ -95,10 +133,9 @@ public class Server {
                 ))
                 .toList();
 
-        // Пули:
-        var bulletSnapshots = world.getBullets().stream()
+        List<BulletSnapshot> bulletSnapshots = world.getBullets().stream()
                 .map(b -> new BulletSnapshot(
-                        b.id,      // ← нужно добавить id в ServerBullet!
+                        b.id,
                         (float) b.x,
                         (float) b.y,
                         (float) b.vx,
@@ -110,14 +147,24 @@ public class Server {
         for (ClientHandler client : allClients) {
             client.send(msg);
         }
+    }
 
-        for (var p : players) {
-            System.out.println("Server player " + p.id + " at (" + p.x + ", " + p.y + ")");
+    public void onPlayerKilled(int killerId, int victimId) {
+        stats.recordWin(killerId);
+        stats.recordDeath(victimId);
+
+        for (ClientHandler client : allClients) {
+            if (client.playerId == killerId) {
+                client.sendGameOver(true);
+            } else if (client.playerId == victimId) {
+                client.sendGameOver(false);
+            } else {
+                client.sendGameOver(true);
+            }
         }
     }
 
-    // ================= ОБРАБОТЧИК КЛИЕНТА =================
-
+    // Обработка клиента
     private class ClientHandler extends Thread {
         private final Socket socket;
         private final DataInputStream in;
@@ -129,7 +176,7 @@ public class Server {
             this.socket = socket;
             this.in = new DataInputStream(socket.getInputStream());
             this.out = new DataOutputStream(socket.getOutputStream());
-            Server.this.allClients.add(this); // ← ДОБАВЛЯЕМ СРАЗУ
+            Server.this.allClients.add(this);
         }
 
         @Override
@@ -163,7 +210,7 @@ public class Server {
                     if (playerId != input.playerId()) {
                         throw new IOException("Player ID mismatch");
                     }
-                    world.applyInput(playerId, input.dx(), input.jump(), input.shoot()); // ← jump вместо dy
+                    world.applyInput(playerId, input.dx(), input.jump(), input.shoot());
                 }
 
                 case DISCONNECT -> {
@@ -174,6 +221,10 @@ public class Server {
                     // Игнорируем
                 }
             }
+        }
+
+        private void sendGameOver(boolean isWinner) {
+            send(new GameOverMessage(isWinner));
         }
 
         public void send(GameMessage msg) {
@@ -198,17 +249,21 @@ public class Server {
         }
     }
 
-    // ================= MAIN =================
+    public void removePlayer(int id) {
+        world.removePlayer(id);
+    }
+
 
     public static void main(String[] args) throws Exception {
         Server server = new Server();
 
-        // Ожидаем ввода от пользователя для завершения
-        System.out.println("Server is running. Press ENTER to stop.");
-        System.in.read(); // Блокирует главный поток до нажатия Enter
+        System.out.println("Текущая статистика:");
+        server.stats.players.forEach((id, s) ->
+                System.out.println("  Игрок " + id + ": " + s.wins + " побед, " + s.deaths + " смертей")
+        );
 
-        // Завершаем сервер
+        System.in.read();
+
         server.serverSocket.close();
-        System.out.println("Server stopped.");
     }
 }

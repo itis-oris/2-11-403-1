@@ -1,7 +1,14 @@
 package aa.tulybaev.client.network;
 
+import aa.tulybaev.client.Main;
 import aa.tulybaev.client.core.SnapshotBuffer;
-import aa.tulybaev.protocol.*;
+import aa.tulybaev.protocol.core.BinaryProtocol;
+import aa.tulybaev.protocol.core.GameMessage;
+import aa.tulybaev.protocol.messages.GameOverMessage;
+import aa.tulybaev.protocol.messages.InputMessage;
+import aa.tulybaev.protocol.messages.JoinAccept;
+import aa.tulybaev.protocol.messages.JoinRequest;
+import aa.tulybaev.protocol.messages.snapshots.WorldSnapshotMessage;
 
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
@@ -37,11 +44,10 @@ public final class NetworkClient {
     }
 
 
-    // ================= ВНЕШНИЙ ИНТЕРФЕЙС =================
 
     public void sendInput(float dx, boolean jump, boolean shoot) {
         if (playerId < 0) return;
-        send(new InputMessage(playerId, dx, jump, shoot)); // ← 4 аргумента
+        send(new InputMessage(playerId, dx, jump, shoot));
     }
 
     public int getPlayerId() {
@@ -55,7 +61,6 @@ public final class NetworkClient {
         } catch (IOException ignored) {}
     }
 
-    // ================= ОТПРАВКА =================
 
     private void send(GameMessage msg) {
         try {
@@ -67,7 +72,6 @@ public final class NetworkClient {
         }
     }
 
-    // ================= ПРИЁМ =================
 
     private void startListener() {
         Thread listener = new Thread(() -> {
@@ -82,42 +86,40 @@ public final class NetworkClient {
                 }
             } catch (Exception e) {
                 System.err.println("Failed to read message:");
-                e.printStackTrace(); // ← ВАЖНО!
+                e.printStackTrace();
             }
         }, "NetworkListener");
         listener.setDaemon(true);
         listener.start();
     }
 
-    // ================= ОБРАБОТКА =================
 
     private void handle(GameMessage msg) {
-        System.out.println("Received message: " + msg.type()); // ← ДОБАВЬ ЭТО
 
         switch (msg.type()) {
             case JOIN_ACCEPT -> {
                 JoinAccept join = (JoinAccept) msg;
                 this.playerId = join.playerId();
-                System.out.println("Connected as player " + playerId);
                 if (onConnected != null) {
                     onConnected.onConnected(playerId);
                 }
             }
             case SNAPSHOT -> {
                 WorldSnapshotMessage snap = (WorldSnapshotMessage) msg;
-                System.out.println("CLIENT: Received snapshot with " + snap.players().size() + " players");
-                for (PlayerSnapshot p : snap.players()) {
-                    System.out.println("  Player " + p.id() + " at (" + p.x() + ", " + p.y() +
-                            ") facing=" + p.facingRight() + " hp=" + p.hp());
-                }
                 snapshotBuffer.push(snap);
             }
+            case GAME_OVER -> {
+                GameOverMessage gameOverMsg = (GameOverMessage) msg;
+                if (gameOverMsg.isWinner()) {
+                    Main.triggerVictory();
+                } else {
+                    Main.triggerGameOver();
+                }
+            }
             case DISCONNECT -> {
-                System.out.println("Server disconnected");
                 running = false;
             }
             default -> {
-                System.out.println("Unhandled message type: " + msg.type());
             }
         }
     }
